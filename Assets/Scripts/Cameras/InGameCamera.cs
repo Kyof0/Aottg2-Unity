@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using CustomLogic;
 using UnityStandardAssets.ImageEffects;
 using Photon.Pun;
+using UnityEngine.UIElements;
 
 namespace Cameras
 {
@@ -30,8 +31,9 @@ namespace Cameras
         private float _anchorDistance;
         private float _headOffset;
         private const float DistanceMultiplier = 10f;
-        private bool _napeLock;
+        public bool _napeLock;
         private BaseTitan _napeLockTitan;
+        private Transform neck;
         private SnapshotHandler _snapshotHandler;
         private const float ShakeDistance = 10f;
         private const float ShakeDuration = 1f;
@@ -244,7 +246,8 @@ namespace Cameras
 
         private void UpdateMain()
         {
-
+            var cameraDistance = GetCameraDistance();
+            float offset = cameraDistance * (200f - Camera.fieldOfView) / 150f;
             if (!ChatManager.IsChatActive() && !InGameMenu.InMenu())
             {
                 if (_input.ChangeCamera.GetKeyDown())
@@ -271,8 +274,6 @@ namespace Cameras
                     }
                 }
             }
-            var cameraDistance = GetCameraDistance();
-            float offset = cameraDistance * (200f - Camera.fieldOfView) / 150f;
             if (cameraDistance == 0f)
                 offset = 0.1f;
             Cache.Transform.position = _follow.GetCameraAnchor().position;
@@ -285,14 +286,15 @@ namespace Cameras
                 sensitivity = 0f;
             if (_napeLock && (_napeLockTitan != null))
             {
-                float z = Cache.Transform.eulerAngles.z;
                 Transform neck = _napeLockTitan.BaseTitanCache.Neck;
-                Cache.Transform.LookAt(_follow.GetCameraAnchor().position * 0.8f + neck.position * 0.2f);
-                Cache.Transform.localEulerAngles = new Vector3(Cache.Transform.eulerAngles.x, Cache.Transform.eulerAngles.y, z);
+                Cache.Transform.LookAt(new Vector3(neck.position.x, Cache.Transform.eulerAngles.y, neck.position.z));
+                float rotationX = 0.5f * (280f * (Screen.height * 0.6f - Input.mousePosition.y )) / Screen.height;
+                Cache.Transform.rotation = Quaternion.Euler(rotationX, Cache.Transform.rotation.eulerAngles.y, Cache.Transform.rotation.eulerAngles.z);
                 Cache.Transform.position -= Cache.Transform.forward * DistanceMultiplier * _anchorDistance * offset;
                 if (_napeLockTitan.Dead)
                 {
                     _napeLockTitan = null;
+                    _napeLock = false;
                 }
             }
             else if (CurrentCameraMode == CameraInputMode.Original)
@@ -309,7 +311,6 @@ namespace Cameras
                 }
                 float rotationX = 0.5f * (280f * (Screen.height * 0.6f - Input.mousePosition.y)) / Screen.height;
                 Cache.Transform.rotation = Quaternion.Euler(rotationX, Cache.Transform.rotation.eulerAngles.y, Cache.Transform.rotation.eulerAngles.z);
-                Cache.Transform.position -= Cache.Transform.forward * DistanceMultiplier * _anchorDistance * offset;
             }
             else if (CurrentCameraMode == CameraInputMode.TPS || CurrentCameraMode == CameraInputMode.FPS)
             {
@@ -322,8 +323,8 @@ namespace Cameras
                 bool rotateDown = inputY >= 0f || ((angleY <= 280f || sumY >= 280f) && (angleY <= 100f || sumY >= 100f));
                 if (rotateUp && rotateDown)
                     Cache.Transform.RotateAround(Cache.Transform.position, Cache.Transform.right, inputY);
-                Cache.Transform.position -= Cache.Transform.forward * DistanceMultiplier * _anchorDistance * offset;
             }
+            Cache.Transform.position -= Cache.Transform.forward * DistanceMultiplier * _anchorDistance * offset;
             Cache.Transform.position += Cache.Transform.right * (SettingsManager.GeneralSettings.CameraSide.Value - 1f);
             UpdateShake();
         }
